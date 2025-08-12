@@ -31,6 +31,6 @@ export async function tts(project) {
   }));
 }
 export async function getRealtimePayload(project) {
-  return j(await fetch(`${BASE}/api/realtime/${encodeURIComponent(project)}`));
+  return j(await fetch(`${BASE}/api/realtime?project=${encodeURIComponent(project)}`));
 }
 

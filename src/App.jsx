@@ -751,58 +751,6 @@ const sendTextMessage = () => {
         </div>
       )}
 
-      {showSettings && (
-        <div className="absolute top-20 right-4 w-80 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl p-4 shadow-2xl z-50">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Settings</h3>
-            <button
-              onClick={() => setShowSettings(false)}
-              className="p-1 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Admin Controls</label>
-              <button
-                onClick={() => setIsAdmin(!isAdmin)}
-                className={`w-full p-2 rounded-lg text-sm transition-colors ${
-                  isAdmin ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-                }`}
-              >
-                {isAdmin ? 'Admin Mode: ON' : 'Admin Mode: OFF'}
-              </button>
-            </div>
-
-            {isAdmin && (
-              <div className="border border-purple-500/30 rounded-lg p-3 bg-purple-900/20">
-                <button
-                  onClick={() => handlePush('convai')}
-                  className="w-full px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium disabled:opacity-50"
-                  disabled={loading || !project}
-                >
-                  {loading ? 'Pushing...' : 'Push KB → ConvAI'}
-                </button>
-
-                {convaiResp && (
-                  <div className="mt-2 p-2 bg-gray-800 rounded text-xs text-green-400">
-                    {convaiResp.message || 'Success'}
-                  </div>
-                )}
-
-                {kb && (
-                  <div className="mt-2">
-                    <div className="text-xs text-purple-300 mb-1">KB: {kb.title}</div>
-                    <div className="text-xs text-gray-400 bg-gray-800 p-2 rounded max-h-16 overflow-y-auto">
-                      {kb.text?.substring(0, 100)}...
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Connection Status</label>
               <div className={`flex items-center gap-2 p-2 rounded-lg ${

@@ -10,11 +10,12 @@ async function j(r) {
 
 export async function getProjects() { return j(await fetch(`${BASE}/api/projects`)); }
 export async function getKB(key) {
-  const r = await fetch(`${BASE}/api/kb/${encodeURIComponent(key)}`);
+  const r = await fetch(`${BASE}/api/kb?key=${encodeURIComponent(key)}`);
   const data = await j(r);
   if (!r.ok || data?.error) throw new Error(data?.error || 'KB fetch failed');
   return data;
 }
+
 export async function pushKB({ project, mode }) {
   return j(await fetch(`${BASE}/api/push`, {
     method: 'POST',

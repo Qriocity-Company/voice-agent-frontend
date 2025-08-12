@@ -751,23 +751,7 @@ const sendTextMessage = () => {
         </div>
       )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Connection Status</label>
-              <div className={`flex items-center gap-2 p-2 rounded-lg ${
-                wsStatus === 'connected' ? 'bg-green-900/20 border border-green-500/30' :
-                wsStatus === 'error' ? 'bg-red-900/20 border border-red-500/30' :
-                'bg-gray-800'
-              }`}>
-                <div className={`w-2 h-2 rounded-full ${
-                  wsStatus === 'connected' ? 'bg-green-500' :
-                  wsStatus === 'error' ? 'bg-red-500' : 'bg-yellow-500'
-                }`} />
-                <span className="text-sm text-gray-300 capitalize">{wsStatus}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {messages.length > 0 && (
         <div className="absolute top-20 left-4 w-80 max-h-96 overflow-y-auto bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl p-4 space-y-3 z-40">

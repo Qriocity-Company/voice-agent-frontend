@@ -36,7 +36,7 @@ export default function App() {
   const [isUpdatingKB, setIsUpdatingKB] = useState(false);
   const [kbUpdateStatus, setKbUpdateStatus] = useState('');
 
-  const API_BASE = import.meta.env.VITE_API_BASE || 'https://11labs-webhook-voiceagent.vercel.app/';
+  const API_BASE = import.meta.env.VITE_API_BASE || 'https://11labs-webhook-voiceagent.vercel.app';
 
   useEffect(() => {
     getProjects().then((p) => {

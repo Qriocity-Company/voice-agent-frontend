@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_BASE || 'https://11labs-webhook-voiceagent.vercel.app/';
+const BASE = import.meta.env.VITE_API_BASE || 'https://11labs-webhook-voiceagent.vercel.app';
 
 async function j(r) {
   const t = await r.text();

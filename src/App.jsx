@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getProjects, getKB, pushKB } from './api';
+import { getProjects, getKB, pushKB, getRealtimePayload } from './api';
 import { Mic, MicOff, MessageSquare, Settings, Volume2, VolumeX, Send, X, PhoneOff } from 'lucide-react';
 
 export default function App() {

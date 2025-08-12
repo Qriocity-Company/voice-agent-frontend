@@ -454,9 +454,9 @@ export default function App() {
               disabled={isUpdatingKB || wsStatus === 'connected'}
             >
               <option value="">Select Project...</option>
-              {projects.map((p) => (
+              {Array.isArray(projects) ? projects.map(p => (
                 <option key={p.key} value={p.key}>{p.title}</option>
-              ))}
+              )) : null}
             </select>
             
             {/* Project selection status indicator */}

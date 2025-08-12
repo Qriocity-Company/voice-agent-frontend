@@ -327,8 +327,12 @@ export default function App() {
     if (wsRef.current && wsRef.current.readyState === 1) wsRef.current.close();
     setWsStatus('connecting');
     
-    const url = `${API_BASE.replace('http', 'ws')}/ws?project=${encodeURIComponent(project)}`;
-    const ws = new WebSocket(url);
+    // const url = `${API_BASE.replace('http', 'ws')}/ws?project=${encodeURIComponent(project)}`;
+    // const ws = new WebSocket(url);
+
+    const payload = await getRealtimePayload(project);
+    const qs = new URLSearchParams(payload.query).toString();
+    const ws = new WebSocket(`${payload.ws}?${qs}`);
     ws.binaryType = 'arraybuffer';
     
     ws.onopen = () => { 

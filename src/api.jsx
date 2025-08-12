@@ -1,6 +1,8 @@
 // src/api.jsx (or src/api.js)
 
 const BASE = import.meta.env.VITE_API_BASE || 'https://11labs-webhook-voiceagent.vercel.app';
+const WORKER_WS_URL = import.meta.env.VITE_WORKER_WS_URL || 'wss://11labs-web.shubhambpn1234.workers.dev';
+
 
 /** @param {Response} r */
 async function j(r) {
@@ -31,6 +33,11 @@ export async function tts(project) {
   }));
 }
 export async function getRealtimePayload(project) {
-  return j(await fetch(`${BASE}/api/realtime?project=${encodeURIComponent(project)}`));
+  const agentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'agent_8701k1xp8d5xf0q9zg26pyz3tbzx';
+  const model = import.meta.env.VITE_ELEVENLABS_MODEL || 'eleven_flash_v2';
+   return {
+    ws_url: `${WORKER_WS_URL}/ws?model=${encodeURIComponent(model)}&agent_id=${encodeURIComponent(agentId)}&project=${encodeURIComponent(project)}`
+  };
+  //return j(await fetch(`${BASE}/api/realtime?project=${encodeURIComponent(project)}`));
 }
 

@@ -6,7 +6,7 @@ async function j(r) {
 }
 
 export async function getProjects() {
-  const r = await fetch(`${BASE}/api/projects`);
+  const r = await fetch(`${BASE}/projects`);
   return j(r);
 }
 

@@ -200,37 +200,61 @@ export default function App() {
       mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
 
       mediaRecorder.onstop = async () => {
-        if (audioChunks.length === 0 || audioProcessingRef.current || agentSpeaking) {
-          stream.getTracks().forEach(t => t.stop());
-          setIsRecording(false);
-          return;
-        }
-        audioProcessingRef.current = true;
-        setIsProcessingAudio(true);
-        try {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-          const formData = new FormData();
-          formData.append('audio', audioBlob, 'recording.wav');
-          formData.append('model_id', 'scribe_v1');
+  if (audioChunks.length === 0 || audioProcessingRef.current || agentSpeaking) {
+    stream.getTracks().forEach(t => t.stop());
+    setIsRecording(false);
+    return;
+  }
+  audioProcessingRef.current = true;
+  setIsProcessingAudio(true);
+  try {
+    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+    
+    // Option 1: Send audio directly to Worker as base64 (if Worker supports it)
+    // const arrayBuffer = await audioBlob.arrayBuffer();
+    // const uint8Array = new Uint8Array(arrayBuffer);
+    // const base64Audio = btoa(String.fromCharCode.apply(null, uint8Array));
+    // 
+    // if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    //   wsRef.current.send(JSON.stringify({
+    //     user_audio_chunk: base64Audio
+    //   }));
+    // }
+    
+    // Option 2: Use STT API then send text (recommended for now)
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.wav');
+    formData.append('model_id', 'scribe_v1');
 
-          const sttResponse = await fetch(`${API_BASE}/api/stt`, { method: 'POST', body: formData });
-          if (!sttResponse.ok) throw new Error(`STT failed: ${sttResponse.status}`);
-          const sttResult = await sttResponse.json();
-          const transcribedText = sttResult.text?.trim();
+    const sttResponse = await fetch(`${API_BASE}/api/stt`, { method: 'POST', body: formData });
+    if (!sttResponse.ok) throw new Error(`STT failed: ${sttResponse.status}`);
+    const sttResult = await sttResponse.json();
+    const transcribedText = sttResult.text?.trim();
 
-          if (transcribedText) {
-            setMessages((m) => [...m, { role: 'user', text: transcribedText, timestamp: new Date() }]);
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-              wsRef.current.send(JSON.stringify({ type: 'user_message', text: transcribedText }));
-            }
-          }
-        } catch (error) {
-          setMessages((m) => [...m, { role: 'system', text: `❌ Voice processing failed: ${error.message}`, type: 'error', timestamp: new Date() }]);
-        } finally {
-          setTimeout(() => { audioProcessingRef.current = false; setIsProcessingAudio(false); }, 1500);
-          stream.getTracks().forEach(t => t.stop());
-        }
-      };
+    if (transcribedText) {
+      setMessages((m) => [...m, { role: 'user', text: transcribedText, timestamp: new Date() }]);
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        console.log('📤 Sending transcribed text to Worker:', transcribedText);
+        wsRef.current.send(JSON.stringify({ type: 'user_message', text: transcribedText }));
+      }
+    }
+  } catch (error) {
+    console.error('❌ Voice processing failed:', error);
+    setMessages((m) => [...m, { 
+      role: 'system', 
+      text: `❌ Voice processing failed: ${error.message}`, 
+      type: 'error', 
+      timestamp: new Date() 
+    }]);
+  } finally {
+    setTimeout(() => { 
+      audioProcessingRef.current = false; 
+      setIsProcessingAudio(false); 
+    }, 1500);
+    stream.getTracks().forEach(t => t.stop());
+  }
+};
+      
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start(1000);
@@ -251,6 +275,7 @@ export default function App() {
     }
     setIsRecording(false);
   };
+
 
   // Add function to disconnect conversation
   const disconnectConversation = () => {
@@ -304,7 +329,7 @@ export default function App() {
       alert('Please select a project first');
       return;
     }
-
+  
     // First update the agent's knowledge base with selected project
     setKbUpdateStatus('Updating agent knowledge base...');
     setIsUpdatingKB(true);
@@ -322,64 +347,131 @@ export default function App() {
       alert(`Failed to update knowledge base: ${error.message}`);
       return;
     }
-
-    // Now start the WebSocket connection
+  
+    // Close existing connection
     if (wsRef.current && wsRef.current.readyState === 1) wsRef.current.close();
     setWsStatus('connecting');
-    // ask backend for a fully-authenticated ws url
-    const { ws_url /*, initial_knowledge_base */ } = await getRealtimePayload(project);
-    // const url = `${API_BASE.replace('http', 'ws')}/ws?project=${encodeURIComponent(project)}`;
-    // const ws = new WebSocket(url);
-
-    const ws = new WebSocket(ws_url);
-    ws.binaryType = 'arraybuffer';
-
     
-    ws.onopen = () => { 
-      setWsStatus('connected'); 
-      setMessages([]); 
-      setIsUpdatingKB(false);
-      setKbUpdateStatus('');
-      try { ensureAudioCtx(); } catch {} 
-    };
-    
-    ws.onclose = () => { 
-      setWsStatus('disconnected'); 
-      setCurrentAgentMessage(''); 
-      setAgentSpeaking(false); 
-    };
-    
-    ws.onerror = () => {
+    try {
+      // Get WebSocket URL (now points to Worker)
+      const { ws_url } = await getRealtimePayload(project);
+      console.log('Connecting to Worker:', ws_url);
+      
+      const ws = new WebSocket(ws_url);
+      ws.binaryType = 'arraybuffer';
+      
+      ws.onopen = () => { 
+        console.log('✅ Connected to Worker');
+        setWsStatus('connected'); 
+        setMessages([]); 
+        setIsUpdatingKB(false);
+        setKbUpdateStatus('');
+        try { ensureAudioCtx(); } catch {} 
+      };
+      
+      ws.onclose = (evt) => { 
+        console.log('🔌 Worker connection closed:', evt.code, evt.reason);
+        setWsStatus('disconnected'); 
+        setCurrentAgentMessage(''); 
+        setAgentSpeaking(false); 
+      };
+      
+      ws.onerror = (evt) => {
+        console.error('❌ Worker connection error:', evt);
+        setWsStatus('error');
+        setIsUpdatingKB(false);
+        setKbUpdateStatus('');
+      };
+      
+      ws.onmessage = async (evt) => {
+        const raw = await normalizeWsData(evt.data);
+        try {
+          const j = JSON.parse(raw);
+          
+          // Handle Worker-specific message formats
+          if (j.type === 'info') {
+            console.log('ℹ️ Worker info:', j.text);
+            setMessages((m) => [...m, { 
+              role: 'system', 
+              text: j.text, 
+              type: 'info', 
+              timestamp: new Date() 
+            }]);
+            return;
+          }
+          
+          if (j.type === 'error') {
+            console.error('❌ Worker error:', j.text);
+            setMessages((m) => [...m, { 
+              role: 'system', 
+              text: j.text, 
+              type: 'error', 
+              timestamp: new Date() 
+            }]);
+            return;
+          }
+          
+          // Handle audio from Worker (normalized format)
+          if (j.type === 'audio' && j.audio_base_64) {
+            console.log('🔊 Received audio from Worker');
+            enqueueAudio(j.audio_base_64, j.mime);
+            return;
+          }
+          
+          // Handle direct audio_base_64 field (backward compatibility)
+          const b64 = j?.audio_base_64;
+          if (b64) { 
+            console.log('🔊 Received direct audio');
+            enqueueAudio(b64, j.mime); 
+            return; 
+          }
+          
+          // Handle conversation metadata
+          if (j.conversation_initiation_metadata_event) {
+            console.log('🎤 Conversation initialized:', j.conversation_initiation_metadata_event.conversation_id);
+            setMessages((m) => [...m, { 
+              role: 'system', 
+              text: 'Conversation started successfully', 
+              type: 'info', 
+              timestamp: new Date() 
+            }]);
+            return;
+          }
+          
+          // Handle text messages from agent
+          const extractedText = extractText(j);
+          if (extractedText && extractedText.trim() && 
+              !extractedText.includes('conversation_initiation') && 
+              !extractedText.includes('metadata') && 
+              !extractedText.includes('ping') && 
+              !extractedText.includes('pong') && 
+              !extractedText.includes('interruption') && 
+              extractedText.length > 2) {
+            
+            console.log('💬 Agent text:', extractedText);
+            setCurrentAgentMessage(extractedText.trim());
+            setMessages((m) => [...m, { 
+              role: 'assistant', 
+              text: String(extractedText).trim(), 
+              timestamp: new Date() 
+            }]);
+          }
+          
+        } catch (parseError) {
+          console.log('⚠️ Failed to parse Worker message:', parseError);
+          // Handle non-JSON messages if needed
+        }
+      };
+      
+      wsRef.current = ws;
+      
+    } catch (error) {
+      console.error('❌ Failed to start Worker connection:', error);
       setWsStatus('error');
       setIsUpdatingKB(false);
       setKbUpdateStatus('');
-    };
-    
-    ws.onmessage = async (evt) => {
-      const raw = await normalizeWsData(evt.data);
-      try {
-        const j = JSON.parse(raw);
-        const b64 = j?.audio_base_64;
-        if (b64) { enqueueAudio(b64, j.mime); return; }
-        switch (j?.type) {
-          case 'info':
-          case 'error':
-            setMessages((m) => [...m, { role: 'system', text: j.text, type: j.type, timestamp: new Date() }]);
-            break;
-          case 'audio':
-            if (j.audio_base_64) enqueueAudio(j.audio_base_64, j.mime);
-            break;
-          default:
-            const t = extractText(j);
-            if (t && t.trim() && !t.includes('conversation_initiation') && !t.includes('metadata') && !t.includes('ping') && !t.includes('pong') && !t.includes('interruption') && t.length > 2) {
-              setCurrentAgentMessage(t.trim());
-              setMessages((m) => [...m, { role: 'assistant', text: String(t).trim(), timestamp: new Date() }]);
-            }
-            break;
-        }
-      } catch {}
-    };
-    wsRef.current = ws;
+      alert(`Failed to connect: ${error.message}`);
+    }
   };
 
   const decodeAB = (ab) => {
@@ -411,14 +503,18 @@ export default function App() {
     return found;
   };
 
-  const sendTextMessage = () => {
+const sendTextMessage = () => {
     const v = inputRef.current?.value?.trim();
     if (!v || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-    wsRef.current.send(JSON.stringify({ type: 'user_message', text: v }));
+    
+    // Send in format expected by Worker
+    const message = { type: 'user_message', text: v };
+    console.log('📤 Sending text to Worker:', message);
+    
+    wsRef.current.send(JSON.stringify(message));
     setMessages((m) => [...m, { role: 'user', text: v, timestamp: new Date() }]);
     inputRef.current.value = '';
   };
-
   const getStatusText = () => {
     if (isRecording) return 'Recording...';
     if (isProcessingAudio) return 'Processing...';

@@ -326,14 +326,14 @@ export default function App() {
     // Now start the WebSocket connection
     if (wsRef.current && wsRef.current.readyState === 1) wsRef.current.close();
     setWsStatus('connecting');
-    
+    // ask backend for a fully-authenticated ws url
+    const { ws_url /*, initial_knowledge_base */ } = await getRealtimePayload(project);
     // const url = `${API_BASE.replace('http', 'ws')}/ws?project=${encodeURIComponent(project)}`;
     // const ws = new WebSocket(url);
 
-    const payload = await getRealtimePayload(project);
-    const qs = new URLSearchParams(payload.query).toString();
-    const ws = new WebSocket(`${payload.ws}?${qs}`);
+    const ws = new WebSocket(ws_url);
     ws.binaryType = 'arraybuffer';
+
     
     ws.onopen = () => { 
       setWsStatus('connected'); 
